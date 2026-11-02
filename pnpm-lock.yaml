@@ -422,6 +422,21 @@ importers:
         specifier: ^4.3.0
         version: 4.6.7
 
+  packages/web-app-paperless:
+    devDependencies:
+      '@opencloud-eu/web-client':
+        specifier: ^8.0.0
+        version: 8.2.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
+      '@opencloud-eu/web-pkg':
+        specifier: ^8.0.0
+        version: 8.2.1(@floating-ui/dom@1.8.0)(@tiptap/extension-code-block@3.31.4(@tiptap/core@3.31.4(@tiptap/pm@3.31.4))(@tiptap/pm@3.31.4))(@tiptap/extensions@3.31.4(@tiptap/core@3.31.4(@tiptap/pm@3.31.4))(@tiptap/pm@3.31.4))(@vue/compiler-sfc@3.5.44)(@vue/devtools-api@8.2.1)(debug@4.4.3(supports-color@8.1.1))(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.6)(rolldown@1.2.15)(supports-color@8.1.1)(typescript@6.0.3)(vite@8.3.5(@types/node@24.19.2)(jiti@2.7.0)(sass-embedded@1.106.1)(sass@1.106.1)(terser@5.36.0))(vue@3.5.44(typescript@6.0.3))
+      vue:
+        specifier: ^3.4.21
+        version: 3.5.44(typescript@6.0.3)
+      vue3-gettext:
+        specifier: ^4.0.0
+        version: 4.0.1(vue@3.5.44(typescript@6.0.3))
+
   packages/web-app-pastebin:
     dependencies:
       highlight.js:
@@ -455,6 +470,21 @@ importers:
       '@vueuse/core':
         specifier: ^15.0.0
         version: 15.0.0(vue@3.5.44(typescript@6.0.3))
+      vue:
+        specifier: ^3.4.21
+        version: 3.5.44(typescript@6.0.3)
+      vue3-gettext:
+        specifier: ^4.0.0
+        version: 4.0.1(vue@3.5.44(typescript@6.0.3))
+
+  packages/web-app-stirling-pdf:
+    devDependencies:
+      '@opencloud-eu/web-client':
+        specifier: ^8.0.0
+        version: 8.2.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
+      '@opencloud-eu/web-pkg':
+        specifier: ^8.0.0
+        version: 8.2.1(@floating-ui/dom@1.8.0)(@tiptap/extension-code-block@3.31.4(@tiptap/core@3.31.4(@tiptap/pm@3.31.4))(@tiptap/pm@3.31.4))(@tiptap/extensions@3.31.4(@tiptap/core@3.31.4(@tiptap/pm@3.31.4))(@tiptap/pm@3.31.4))(@vue/compiler-sfc@3.5.44)(@vue/devtools-api@8.2.1)(debug@4.4.3(supports-color@8.1.1))(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.6)(rolldown@1.2.15)(supports-color@8.1.1)(typescript@6.0.3)(vite@8.3.5(@types/node@24.19.2)(jiti@2.7.0)(sass-embedded@1.106.1)(sass@1.106.1)(terser@5.36.0))(vue@3.5.44(typescript@6.0.3))
       vue:
         specifier: ^3.4.21
         version: 3.5.44(typescript@6.0.3)
