@@ -38,6 +38,11 @@ export interface StirlingOperation {
    * to it (server keeps a version). Only sensible for pdf -> pdf.
    */
   inPlace?: boolean
+  /**
+   * nest the operation under a parent context-menu entry with this
+   * label (all operations sharing a group label share one submenu).
+   */
+  group?: string
   /** query parameters appended to the endpoint, e.g. { outputFormat: "docx" } */
   params?: Record<string, string>
   /**
@@ -228,36 +233,76 @@ export const useStirlingActions = ({ applicationConfig }: ApplicationSetupOption
     }
   }
 
-  return computed<FileAction[]>(() =>
-    operations.map((op) => {
-      const minFiles = op.multiple ? 2 : 1
-      const exact = !op.multiple
-      return {
-        name: `stirling-${op.id}`,
-        icon: 'file-settings',
-        handler: (args: FileActionOptions) => loadingService.addTask(() => buildHandler(op)(args)),
-        label: () => $gettext(op.label),
-        isDisabled: ({ resources }) =>
-          resources.reduce((sum, r) => sum + Number(r.size || 0), 0) > maxSize,
-        disabledTooltip: () =>
-          $gettext('Selection exceeds the maximum size of %{maxSize}', {
-            maxSize: formatFileSize(maxSize, currentLanguage)
-          }),
-        isVisible: ({ resources }) => {
-          if (resources.length < minFiles) {
-            return false
-          }
-          if (exact && resources.length !== 1) {
-            return false
-          }
-          if (!resources.every(isPdf)) {
-            return false
-          }
-          return resourcesStore.currentFolder?.canUpload({ user: userStore.user }) === true
-        },
-        componentType: 'button',
-        class: 'oc-files-actions-stirling-pdf'
+  const buildAction = (op: StirlingOperation): FileAction => {
+    const minFiles = op.multiple ? 2 : 1
+    const exact = !op.multiple
+    return {
+      name: `stirling-${op.id}`,
+      icon: 'file-settings',
+      handler: (args: FileActionOptions) => loadingService.addTask(() => buildHandler(op)(args)),
+      label: () => $gettext(op.label),
+      isDisabled: ({ resources }) =>
+        resources.reduce((sum, r) => sum + Number(r.size || 0), 0) > maxSize,
+      disabledTooltip: () =>
+        $gettext('Selection exceeds the maximum size of %{maxSize}', {
+          maxSize: formatFileSize(maxSize, currentLanguage)
+        }),
+      isVisible: ({ resources }) => {
+        if (resources.length < minFiles) {
+          return false
+        }
+        if (exact && resources.length !== 1) {
+          return false
+        }
+        if (!resources.every(isPdf)) {
+          return false
+        }
+        return resourcesStore.currentFolder?.canUpload({ user: userStore.user }) === true
+      },
+      class: 'oc-files-actions-stirling-pdf'
+    }
+  }
+
+  return computed<FileAction[]>(() => {
+    const actions = operations.map(buildAction)
+
+    // group ops under one parent entry per shared group label; the
+    // files UI renders Action.children as a nested context menu.
+    // Ungrouped ops stay top-level.
+    const groups = new Map<string, { ops: typeof operations; actions: FileAction[] }>()
+    const top: FileAction[] = []
+    operations.forEach((op, i) => {
+      if (!op.group) {
+        top.push(actions[i])
+        return
       }
+      const group = groups.get(op.group) || { ops: [], actions: [] }
+      group.ops.push(op)
+      group.actions.push(actions[i])
+      groups.set(op.group, group)
     })
-  )
+
+    const parents: FileAction[] = []
+    groups.forEach((group, label) => {
+      const multiSelectGroup = group.ops.every((op) => op.multiple)
+      parents.push({
+        name: `stirling-group-${group.ops[0].id}`,
+        icon: 'file-settings',
+        label: () => $gettext(label),
+        children: group.actions,
+        // the parent shows when any child would; for single-file groups
+        // also require an exact-one selection so the submenu isn't a
+        // dead end
+        isVisible: (options: FileActionOptions) => {
+          if (!multiSelectGroup && options.resources?.length !== 1) {
+            return false
+          }
+          return group.actions.some((a) => a.isVisible(options))
+        },
+        class: 'oc-files-actions-stirling-pdf-group'
+      })
+    })
+
+    return [...top, ...parents]
+  })
 }
