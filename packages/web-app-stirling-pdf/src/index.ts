@@ -2,7 +2,7 @@ import { useGettext } from 'vue3-gettext'
 import translations from '../l10n/translations.json'
 import { AppWrapperRoute, defineWebApplication } from '@opencloud-eu/web-pkg'
 import { useExtensions } from './composables/useExtensions'
-import Editor from './Editor.vue'
+import CanvasEditor from './CanvasEditor.vue'
 
 const applicationId = 'stirling-pdf'
 
@@ -16,9 +16,10 @@ export default defineWebApplication({
         name: $gettext('Stirling PDF'),
         id: applicationId,
         icon: 'file-pdf-2',
-        // Interactive text editor (Editor.vue) on Stirling's
-        // text-editor session API — a real Open With target, unlike the
-        // 0.2.0 operation launcher (removed in 0.3.0).
+        // Canvas editor (CanvasEditor.vue): pdf.js render + pdf-lib
+        // compositing for highlight/pen/note/signature. All client-side
+        // — Stirling's interactive tools have no API surface. A real
+        // Open With target.
         defaultExtension: 'pdf',
         extensions: [
           {
@@ -31,7 +32,7 @@ export default defineWebApplication({
         {
           name: 'stirling-pdf-editor',
           path: '/:driveAliasAndItem(.*)?',
-          component: AppWrapperRoute(Editor, {
+          component: AppWrapperRoute(CanvasEditor, {
             applicationId,
             importResourceWithExtension() {
               return 'pdf'
