@@ -33,8 +33,19 @@ export interface StirlingOperation {
   outputExtension: string
   /** operation takes 2+ selected files (merge); default single */
   multiple?: boolean
+  /**
+   * overwrite the original in place instead of saving a new file next
+   * to it (server keeps a version). Only sensible for pdf -> pdf.
+   */
+  inPlace?: boolean
   /** query parameters appended to the endpoint, e.g. { outputFormat: "docx" } */
   params?: Record<string, string>
+  /**
+   * multipart form fields besides fileInput (many Stirling endpoints
+   * mark these required). Values: string, or string[] for repeated
+   * fields (e.g. OCR languages).
+   */
+  form?: Record<string, string | string[]>
   /** output base name for multiple-file operations; default "merged" */
   outputName?: string
 }
@@ -45,33 +56,75 @@ interface StirlingConfig {
   maxSize: number
 }
 
+// Verified against the live instance's swagger (/v1/api-docs,
+// Stirling 2.14.3) — several endpoints mark operation fields as
+// REQUIRED and reject the request without them.
 export const DEFAULT_OPERATIONS: StirlingOperation[] = [
+  {
+    id: 'compress',
+    label: 'Compress (in place)',
+    endpoint: '/api/v1/misc/compress-pdf',
+    outputExtension: 'pdf',
+    inPlace: true,
+    form: { optimizeLevel: '5', expectedOutputSize: '100MB' }
+  },
+  {
+    id: 'ocr',
+    label: 'OCR (in place)',
+    endpoint: '/api/v1/misc/ocr-pdf',
+    outputExtension: 'pdf',
+    inPlace: true,
+    form: { languages: ['eng'], ocrType: 'skip-text', ocrRenderType: 'hocr' }
+  },
+  {
+    id: 'rotate-90',
+    label: 'Rotate 90°',
+    endpoint: '/api/v1/general/rotate-pdf',
+    outputExtension: 'pdf',
+    inPlace: true,
+    form: { angle: '90' }
+  },
+  {
+    id: 'repair',
+    label: 'Repair (in place)',
+    endpoint: '/api/v1/misc/repair',
+    outputExtension: 'pdf',
+    inPlace: true
+  },
   {
     id: 'convert-word',
     label: 'Convert to Word',
     endpoint: '/api/v1/convert/pdf/word',
     outputExtension: 'docx',
-    params: { outputFormat: 'docx' }
+    form: { outputFormat: 'docx' }
+  },
+  {
+    id: 'convert-pptx',
+    label: 'Convert to PowerPoint',
+    endpoint: '/api/v1/convert/pdf/presentation',
+    outputExtension: 'pptx',
+    form: { outputFormat: 'pptx' }
   },
   {
     id: 'convert-png',
     label: 'Convert to image (PNG)',
-    endpoint: '/api/v1/convert/pdf/img/img',
+    endpoint: '/api/v1/convert/pdf/img',
     outputExtension: 'png',
-    params: { imageFormat: 'png' }
-  },
-  {
-    id: 'compress',
-    label: 'Compress PDF',
-    endpoint: '/api/v1/misc/compress-pdf',
-    outputExtension: 'pdf'
+    form: {
+      pageNumbers: 'all',
+      imageFormat: 'png',
+      singleOrMultiple: 'single',
+      colorType: 'color',
+      dpi: '150'
+    }
   },
   {
     id: 'merge',
     label: 'Merge PDFs',
     endpoint: '/api/v1/general/merge-pdfs',
     outputExtension: 'pdf',
-    multiple: true
+    multiple: true,
+    form: { sortType: 'orderProvided', removeCertSign: 'false' }
   }
 ]
 
@@ -128,6 +181,10 @@ export const useStirlingActions = ({ applicationConfig }: ApplicationSetupOption
           resources.map((_, index) => getFileBlob({ space, resources }, index))
         )
         blobs.forEach((blob) => form.append('fileInput', blob, blob.name))
+        Object.entries(op.form || {}).forEach(([key, value]) => {
+          const values = Array.isArray(value) ? value : [value]
+          values.forEach((v) => form.append(key, v))
+        })
 
         const query = new URLSearchParams(op.params || {}).toString()
         const url = `${baseUrl}${op.endpoint}${query ? `?${query}` : ''}`
@@ -136,6 +193,23 @@ export const useStirlingActions = ({ applicationConfig }: ApplicationSetupOption
           throw new Error(`Stirling PDF responded ${response.status} for ${op.endpoint}`)
         }
         const resultBlob = await response.blob()
+
+        if (op.inPlace) {
+          // pdf -> pdf: overwrite the original — the server keeps a
+          // version. Update the existing store resource in place (its
+          // object carries the client-side helper methods like
+          // canShare(); replacing it with the plain putFileContents
+          // result breaks the files UI with "canShare is not a
+          // function").
+          const updated = await clientService.webdav.putFileContents(space, {
+            path: resources[0].path,
+            content: await resultBlob.arrayBuffer(),
+            overwrite: true
+          })
+          resources[0].size = updated.size
+          resources[0].etag = updated.etag
+          return
+        }
 
         const base = op.multiple
           ? op.outputName || 'merged'
