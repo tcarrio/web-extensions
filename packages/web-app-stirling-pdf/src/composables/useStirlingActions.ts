@@ -106,9 +106,13 @@ export const useStirlingActions = ({ applicationConfig }: ApplicationSetupOption
   const uppyService = useService<UppyService>('$uppyService')
 
   const getFileBlob = async ({ space, resources }: FileActionOptions, index: number) => {
-    const { response } = await clientService.webdav.getFileContents(space, {
-      path: resources[index].path
-    })
+    const { response } = await clientService.webdav.getFileContents(
+      space,
+      { path: resources[index].path },
+      // responseType defaults to "text" (web-client), which mangles
+      // binary through UTF-8 — always fetch blobs.
+      { responseType: 'blob' }
+    )
     return new File([response.data as Blob], resources[index].name, {
       type: resources[index].mimeType || 'application/pdf'
     })

@@ -1,6 +1,6 @@
 {
   "name": "web-app-paperless",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "OpenCloud Web file actions for Paperless document ingestion and OCR",
   "license": "AGPL-3.0",

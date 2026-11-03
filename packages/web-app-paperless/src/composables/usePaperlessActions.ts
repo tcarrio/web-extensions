@@ -81,15 +81,26 @@ export const usePaperlessActions = ({ applicationConfig }: ApplicationSetupOptio
   const uppyService = useService<UppyService>('$uppyService')
 
   const getFileBlob = async ({ space, resources }: FileActionOptions) => {
-    const { response } = await clientService.webdav.getFileContents(space, {
-      path: resources[0].path
-    })
+    const { response } = await clientService.webdav.getFileContents(
+      space,
+      { path: resources[0].path },
+      // responseType defaults to "text" (web-client), which mangles
+      // binary through UTF-8 — Paperless then rejects the upload with
+      // InputFileError. Always fetch blobs.
+      { responseType: 'blob' }
+    )
     return new File([response.data as Blob], resources[0].name, {
       type: resources[0].mimeType || 'application/octet-stream'
     })
   }
 
-  const consume = async (file: File) => {
+  /**
+   * POST to the consume endpoint. Returns the celery task id on
+   * paperless-ngx versions that report one (2.15+: JSON string body),
+   * null otherwise (older versions answer plain text) — the OCR
+   * round-trip then falls back to filename polling.
+   */
+  const consume = async (file: File): Promise<string | null> => {
     const form = new FormData()
     form.append('document', file, file.name)
     const response = await fetch(`${baseUrl}/api/documents/post_document/`, {
@@ -99,20 +110,53 @@ export const usePaperlessActions = ({ applicationConfig }: ApplicationSetupOptio
     if (!response.ok) {
       throw new Error(`Paperless consume responded ${response.status}`)
     }
+    const text = (await response.text()).replace(/^"|"$/g, '')
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(text)
+    return isUuid ? text : null
   }
 
   /**
-   * Poll the documents list by original filename until the consumed document
-   * appears (consumption is asynchronous). Newest match wins; correlation by
-   * filename is acceptable for a single-user instance.
+   * Wait for consumption to finish and return the new document id.
+   *
+   * Fast path (paperless-ngx >= 2.15): poll the celery task returned by
+   * the consume endpoint — FAILURE surfaces the backend error within one
+   * poll interval instead of running the full timeout. Once the task
+   * SUCCEEDS, resolve the document via the filename listing.
+   *
+   * Fallback (no task id): poll the documents list by original filename
+   * until the consumed document appears. Newest match wins; correlation
+   * by filename is acceptable for a single-user instance.
    */
-  const waitForDocument = async (file: File): Promise<number> => {
+  const waitForDocument = async (file: File, taskId: string | null): Promise<number> => {
     const deadline = Date.now() + timeoutSeconds * 1000
     const listUrl = `${baseUrl}/api/documents/?original_filename=${encodeURIComponent(
       file.name
     )}&ordering=-created&page_size=1`
+    const taskUrl = taskId
+      ? `${baseUrl}/api/tasks/?task_id=${encodeURIComponent(taskId)}&page_size=1`
+      : null
+    let taskSucceeded = taskUrl === null
+
     while (Date.now() < deadline) {
       await sleep(pollIntervalSeconds)
+
+      if (!taskSucceeded && taskUrl) {
+        const response = await fetch(taskUrl)
+        if (response.ok) {
+          const data = (await response.json()) as {
+            results?: Array<{ status?: string; result?: string }>
+          }
+          const task = data.results?.[0]
+          if (task?.status === 'FAILURE' || task?.status === 'REVOKED') {
+            throw new Error(task.result || `Consume task ${task.status}`)
+          }
+          taskSucceeded = task?.status === 'SUCCESS'
+        }
+      }
+      if (!taskSucceeded) {
+        continue
+      }
+
       const response = await fetch(listUrl)
       if (!response.ok) {
         continue
@@ -124,7 +168,7 @@ export const usePaperlessActions = ({ applicationConfig }: ApplicationSetupOptio
       }
     }
     throw new Error(
-      `Timed out after ${timeoutSeconds}s waiting for Paperless to consume ${file.name}`
+      `Timed out after ${timeoutSeconds}s waiting for Paperless to consume ${file.name} — check File Tasks in Paperless`
     )
   }
 
@@ -152,8 +196,8 @@ export const usePaperlessActions = ({ applicationConfig }: ApplicationSetupOptio
   const ocrHandler = async (args: FileActionOptions) => {
     try {
       const file = await getFileBlob(args)
-      await consume(file)
-      const id = await waitForDocument(file)
+      const taskId = await consume(file)
+      const id = await waitForDocument(file, taskId)
       const blob = await downloadArchive(id)
       const base = `${extractNameWithoutExtension(args.resources[0])}${ocrSuffix}`
       const name = resolveFileNameDuplicate(base, 'pdf', resourcesStore.resources)
