@@ -34,8 +34,13 @@ export default defineWebApplication({
           path: '/:driveAliasAndItem(.*)?',
           component: AppWrapperRoute(CanvasEditor, {
             applicationId,
+            // MUST return null: a truthy extension triggers the
+            // wrapper's import-copy flow (file copied to
+            // name_TIMESTAMP.<ext> on every open — duplicate files +
+            // "Could not overwrite Resource" when it collides). We edit
+            // the original in place.
             importResourceWithExtension() {
-              return 'pdf'
+              return null
             }
           }),
           meta: {
