@@ -1,6 +1,6 @@
 {
   "name": "web-app-stirling-pdf",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "private": true,
   "description": "OpenCloud Web file actions for Stirling PDF operations",
   "license": "AGPL-3.0",

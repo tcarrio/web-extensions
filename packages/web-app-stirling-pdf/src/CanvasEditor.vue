@@ -254,8 +254,8 @@ export default defineComponent({
       pageNum.value = Math.min(Math.max(1, n), pageCount.value)
       const page = await pdfjsDoc.getPage(pageNum.value)
       const base = page.getViewport({ scale: 1 })
-      pageHeightPts = base.view[3]
-      pdfScale = displayWidth / base.view[2]
+      pageHeightPts = base.height
+      pdfScale = displayWidth / base.width
       const viewport = page.getViewport({ scale: pdfScale })
       for (const c of [baseCanvas.value, overlayCanvas.value]) {
         c.width = viewport.width
