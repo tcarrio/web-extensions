@@ -219,7 +219,13 @@ export const useStirlingActions = ({ applicationConfig }: ApplicationSetupOption
         const base = op.multiple
           ? op.outputName || 'merged'
           : extractNameWithoutExtension(resources[0])
-        const name = resolveFileNameDuplicate(base, op.outputExtension, resourcesStore.resources)
+        // resolveFileNameDuplicate ALWAYS appends " (n)" — its conflict
+        // check only looks at the suffixed name. Only dedupe when the
+        // plain name actually collides.
+        const plainName = `${base}.${op.outputExtension}`
+        const name = resourcesStore.resources.some((r) => r.name === plainName)
+          ? resolveFileNameDuplicate(plainName, op.outputExtension, resourcesStore.resources)
+          : plainName
         const uploadId = crypto.randomUUID()
         uppyService.addFiles([
           { name, data: resultBlob, meta: { uploadId } } as unknown as OcMinimalUppyFile
