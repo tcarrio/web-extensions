@@ -290,21 +290,16 @@ export const useStirlingActions = ({ applicationConfig }: ApplicationSetupOption
 
     const parents: FileAction[] = []
     groups.forEach((group, label) => {
-      const multiSelectGroup = group.ops.every((op) => op.multiple)
       parents.push({
         name: `stirling-group-${group.ops[0].id}`,
         icon: 'file-settings',
         label: () => $gettext(label),
         children: group.actions,
-        // the parent shows when any child would; for single-file groups
-        // also require an exact-one selection so the submenu isn't a
-        // dead end
-        isVisible: (options: FileActionOptions) => {
-          if (!multiSelectGroup && options.resources?.length !== 1) {
-            return false
-          }
-          return group.actions.some((a) => a.isVisible(options))
-        },
+        // the parent shows whenever ANY child would (the web client
+        // filters the submenu items by the same isVisible) — a
+        // single-file-ops group with one multi-select op (merge) must
+        // still appear on multi selections
+        isVisible: (options: FileActionOptions) => group.actions.some((a) => a.isVisible(options)),
         class: 'oc-files-actions-stirling-pdf-group'
       })
     })
