@@ -423,6 +423,11 @@ export default defineComponent({
         const bytes = new Uint8Array(await (response.data as Blob).arrayBuffer())
 
         const pdfjs = await import('pdfjs-dist')
+        // bundled worker asset (vite ?worker&url, unzip-app idiom) —
+        // without this pdf.js refuses: "No GlobalWorkerOptions.workerSrc"
+        const workerUrl = (await import('pdfjs-dist/build/pdf.worker.min.mjs?worker&url'))
+          .default as string
+        pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
         pdfjsDoc = await pdfjs.getDocument({ data: bytes.slice() }).promise
         pageCount.value = pdfjsDoc.numPages
 
