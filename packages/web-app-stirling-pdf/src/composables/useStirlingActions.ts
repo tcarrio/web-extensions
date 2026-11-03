@@ -45,7 +45,7 @@ interface StirlingConfig {
   maxSize: number
 }
 
-const DEFAULT_OPERATIONS: StirlingOperation[] = [
+export const DEFAULT_OPERATIONS: StirlingOperation[] = [
   {
     id: 'convert-word',
     label: 'Convert to Word',
@@ -80,7 +80,9 @@ const DEFAULT_MAX_SIZE_MB = 100
 const isPdf = (resource: { mimeType?: string; extension?: string }) =>
   resource.mimeType === 'application/pdf' || resource.extension === 'pdf'
 
-const parseConfig = (applicationConfig: Record<string, unknown> | undefined): StirlingConfig => {
+export const parseConfig = (
+  applicationConfig: Record<string, unknown> | undefined
+): StirlingConfig => {
   const baseUrl =
     typeof applicationConfig?.baseUrl === 'string' && applicationConfig.baseUrl.length > 0
       ? applicationConfig.baseUrl.replace(/\/+$/, '')
