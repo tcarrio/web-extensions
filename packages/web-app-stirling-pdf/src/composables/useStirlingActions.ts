@@ -15,7 +15,7 @@ import {
 } from '@opencloud-eu/web-pkg'
 import { computed } from 'vue'
 import { useGettext } from 'vue3-gettext'
-import { extractNameWithoutExtension } from '@opencloud-eu/web-client'
+import { extractNameWithoutExtension, Resource } from '@opencloud-eu/web-client'
 
 /**
  * One Stirling operation exposed as a file action. Endpoint and params are
@@ -144,7 +144,7 @@ const truncateBase = (name: string, max = 40) => (name.length > max ? name.slice
  * Human-derived name for merged output: "A-and-B" for two files,
  * "A-and-N-more" for many (first base name carries the context, capped).
  */
-const mergeBaseName = (resources: Array<{ name: string }>) => {
+const mergeBaseName = (resources: Resource[]) => {
   const first = truncateBase(extractNameWithoutExtension(resources[0]))
   if (resources.length === 2) {
     const second = truncateBase(extractNameWithoutExtension(resources[1]))
