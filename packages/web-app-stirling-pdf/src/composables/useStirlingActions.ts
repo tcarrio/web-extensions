@@ -138,6 +138,21 @@ const DEFAULT_MAX_SIZE_MB = 100
 const isPdf = (resource: { mimeType?: string; extension?: string }) =>
   resource.mimeType === 'application/pdf' || resource.extension === 'pdf'
 
+const truncateBase = (name: string, max = 40) => (name.length > max ? name.slice(0, max) : name)
+
+/**
+ * Human-derived name for merged output: "A-and-B" for two files,
+ * "A-and-N-more" for many (first base name carries the context, capped).
+ */
+const mergeBaseName = (resources: Array<{ name: string }>) => {
+  const first = truncateBase(extractNameWithoutExtension(resources[0]))
+  if (resources.length === 2) {
+    const second = truncateBase(extractNameWithoutExtension(resources[1]))
+    return `${first}-and-${second}`
+  }
+  return `${first}-and-${resources.length - 1}-more`
+}
+
 export const parseConfig = (
   applicationConfig: Record<string, unknown> | undefined
 ): StirlingConfig => {
@@ -217,7 +232,7 @@ export const useStirlingActions = ({ applicationConfig }: ApplicationSetupOption
         }
 
         const base = op.multiple
-          ? op.outputName || 'merged'
+          ? op.outputName || mergeBaseName(resources)
           : extractNameWithoutExtension(resources[0])
         // resolveFileNameDuplicate ALWAYS appends " (n)" — its conflict
         // check only looks at the suffixed name. Only dedupe when the
